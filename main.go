@@ -14,34 +14,43 @@ import (
 
 type apiConfig struct {
 	fileserverHits atomic.Int32
-	Queries        *database.Queries
+	db             *database.Queries
+	platform       string
 }
 
 func main() {
 	godotenv.Load()
-
 	dbURL := os.Getenv("DB_URL")
-	db, err := sql.Open("postgres", dbURL)
+	if dbURL == "" {
+		log.Fatal("DB_URL must be set")
+	}
+	platform := os.Getenv("PLATFORM")
+	if platform == "" {
+		log.Fatal("PLATFORM must be set")
+	}
+
+	dbConn, err := sql.Open("postgres", dbURL)
 	if err != nil {
 		log.Fatalf("error connecting to db: %v", err)
 	}
-	defer db.Close()
-
-	dbQueries := database.New(db)
+	defer dbConn.Close()
+	dbQueries := database.New(dbConn)
 
 	const filepathRoot = "."
 	const port = "8080"
 
 	apiCfg := apiConfig{
 		fileserverHits: atomic.Int32{},
-		Queries:        dbQueries,
+		db:             dbQueries,
+		platform:       platform,
 	}
 
 	ServeMux := http.NewServeMux()
 	ServeMux.Handle("/app/", apiCfg.middlewareMetricsInc(http.StripPrefix("/app", http.FileServer(http.Dir(filepathRoot)))))
 
 	ServeMux.HandleFunc("GET /api/healthz", handlerReadiness)
-	ServeMux.HandleFunc("POST /api/validate_chirp", apiCfg.handlerValidateChirp)
+	ServeMux.HandleFunc("POST /api/users", apiCfg.handlerCreateUser)
+	ServeMux.HandleFunc("POST /api/chirps", apiCfg.handlerCreateChirps)
 
 	ServeMux.HandleFunc("GET /admin/metrics", apiCfg.handlerMetrics)
 	ServeMux.HandleFunc("POST /admin/reset", apiCfg.handlerReset)
