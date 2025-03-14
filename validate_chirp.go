@@ -29,21 +29,24 @@ func (cfg *apiConfig) handlerValidateChirp(w http.ResponseWriter, req *http.Requ
 		return
 	}
 
-	clean_body := replaceBadWords(params.Body)
+	badWords := map[string]struct{}{
+		"kerfuffle": {},
+		"sharbert":  {},
+		"fornax":    {},
+	}
+
+	clean_body := replaceBadWords(params.Body, badWords)
 
 	respondWithJSON(w, http.StatusOK, returnVals{
 		CleanedBody: clean_body,
 	})
 }
 
-func replaceBadWords(body string) string {
+func replaceBadWords(body string, badWords map[string]struct{}) string {
 	words := strings.Split(body, " ")
-	if len(words) < 1 {
-		return body
-	}
 	for idx, word := range words {
 		lowered := strings.ToLower(word)
-		if lowered == "kerfuffle" || lowered == "sharbert" || lowered == "fornax" {
+		if _, ok := badWords[lowered]; ok {
 			words[idx] = "****"
 		}
 	}
