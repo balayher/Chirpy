@@ -44,13 +44,13 @@ func (cfg *apiConfig) handlerUpdateUser(w http.ResponseWriter, req *http.Request
 		return
 	}
 
-	updatedParams := database.UpdateUserPasswordEmailParams{
+	updatedParams := database.UpdateUserParams{
 		Email:          params.Email,
 		HashedPassword: hashedPW,
 		ID:             userID,
 	}
 
-	updatedUser, err := cfg.db.UpdateUserPasswordEmail(req.Context(), updatedParams)
+	updatedUser, err := cfg.db.UpdateUser(req.Context(), updatedParams)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Couldn't update user", err)
 		return
@@ -58,10 +58,11 @@ func (cfg *apiConfig) handlerUpdateUser(w http.ResponseWriter, req *http.Request
 
 	respondWithJSON(w, http.StatusOK, response{
 		User: User{
-			ID:        updatedUser.ID,
-			CreatedAt: updatedUser.CreatedAt,
-			UpdatedAt: updatedUser.UpdatedAt,
-			Email:     updatedUser.Email,
+			ID:          updatedUser.ID,
+			CreatedAt:   updatedUser.CreatedAt,
+			UpdatedAt:   updatedUser.UpdatedAt,
+			Email:       updatedUser.Email,
+			IsChirpyRed: updatedUser.IsChirpyRed,
 		},
 	})
 
