@@ -5,6 +5,8 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/balayher/Chirpy/internal/auth"
+	"github.com/balayher/Chirpy/internal/database"
 	"github.com/google/uuid"
 )
 
@@ -13,11 +15,13 @@ type User struct {
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 	Email     string    `json:"email"`
+	Password  string    `json:"-"`
 }
 
 func (cfg *apiConfig) handlerCreateUser(w http.ResponseWriter, req *http.Request) {
 	type parameters struct {
-		Email string `json:"email"`
+		Password string `json:"password"`
+		Email    string `json:"email"`
 	}
 
 	decoder := json.NewDecoder(req.Body)
@@ -28,17 +32,28 @@ func (cfg *apiConfig) handlerCreateUser(w http.ResponseWriter, req *http.Request
 		return
 	}
 
-	db_user, err := cfg.db.CreateUser(req.Context(), params.Email)
+	hashedPW, err := auth.HashPassword(params.Password)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Error hashing password", err)
+		return
+	}
+
+	userParams := database.CreateUserParams{
+		Email:          params.Email,
+		HashedPassword: hashedPW,
+	}
+
+	user, err := cfg.db.CreateUser(req.Context(), userParams)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Error creating user", err)
 		return
 	}
 
 	new_user := User{
-		ID:        db_user.ID,
-		CreatedAt: db_user.CreatedAt,
-		UpdatedAt: db_user.UpdatedAt,
-		Email:     db_user.Email,
+		ID:        user.ID,
+		CreatedAt: user.CreatedAt,
+		UpdatedAt: user.UpdatedAt,
+		Email:     user.Email,
 	}
 
 	respondWithJSON(w, http.StatusCreated, new_user)

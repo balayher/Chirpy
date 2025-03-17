@@ -16,6 +16,7 @@ type apiConfig struct {
 	fileserverHits atomic.Int32
 	db             *database.Queries
 	platform       string
+	jwtSecret      string
 }
 
 func main() {
@@ -27,6 +28,10 @@ func main() {
 	platform := os.Getenv("PLATFORM")
 	if platform == "" {
 		log.Fatal("PLATFORM must be set")
+	}
+	jwtSecret := os.Getenv("JWT_SECRET")
+	if jwtSecret == "" {
+		log.Fatal("JWT_SECRET environment variable is not set")
 	}
 
 	dbConn, err := sql.Open("postgres", dbURL)
@@ -43,15 +48,25 @@ func main() {
 		fileserverHits: atomic.Int32{},
 		db:             dbQueries,
 		platform:       platform,
+		jwtSecret:      jwtSecret,
 	}
 
 	ServeMux := http.NewServeMux()
 	ServeMux.Handle("/app/", apiCfg.middlewareMetricsInc(http.StripPrefix("/app", http.FileServer(http.Dir(filepathRoot)))))
 
 	ServeMux.HandleFunc("GET /api/healthz", handlerReadiness)
+
 	ServeMux.HandleFunc("POST /api/users", apiCfg.handlerCreateUser)
+	ServeMux.HandleFunc("PUT /api/users", apiCfg.handlerUpdateUser)
+
+	ServeMux.HandleFunc("POST /api/login", apiCfg.handlerLogin)
+	ServeMux.HandleFunc("POST /api/refresh", apiCfg.handlerRefresh)
+	ServeMux.HandleFunc("POST /api/revoke", apiCfg.handlerRevoke)
+
 	ServeMux.HandleFunc("POST /api/chirps", apiCfg.handlerCreateChirps)
 	ServeMux.HandleFunc("GET /api/chirps", apiCfg.handlerRetrieveChirps)
+	ServeMux.HandleFunc("GET /api/chirps/{chirpID}", apiCfg.handlerRetrieveSingleChirp)
+	ServeMux.HandleFunc("DELETE /api/chirps/{chirpID}", apiCfg.handlerDeleteSingleChirp)
 
 	ServeMux.HandleFunc("GET /admin/metrics", apiCfg.handlerMetrics)
 	ServeMux.HandleFunc("POST /admin/reset", apiCfg.handlerReset)
