@@ -28,7 +28,7 @@ func main() {
 	}
 	platform := os.Getenv("PLATFORM")
 	if platform == "" {
-		log.Fatal("PLATFORM must be set")
+		log.Fatal("ADMIN_KEY environment is not set")
 	}
 	jwtSecret := os.Getenv("JWT_SECRET")
 	if jwtSecret == "" {
@@ -41,7 +41,7 @@ func main() {
 
 	dbConn, err := sql.Open("postgres", dbURL)
 	if err != nil {
-		log.Fatalf("error connecting to db: %v", err)
+		log.Fatalf("error opening database: %s", err)
 	}
 	defer dbConn.Close()
 	dbQueries := database.New(dbConn)
@@ -84,6 +84,6 @@ func main() {
 		Addr:    ":" + port,
 	}
 
-	log.Printf("Serving on port: %s\n", port)
+	log.Printf("Serving on: %s\n", port)
 	log.Fatal(server.ListenAndServe())
 }
